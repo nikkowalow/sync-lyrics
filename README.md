@@ -1,0 +1,2 @@
+# sync-lyrics
+syncs lyrics
