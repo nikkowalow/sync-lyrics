@@ -1,8 +1,7 @@
 const getLyrics = require('./lyrics');
 const readline = require('readline');
 
-const songName = "babyPluto";
-const str = getLyrics("./Songs/" + songName + ".txt");
+const songName = "choose-your-song-here";
 
 let timeStamps = [];
 let lyrics = [];
@@ -10,59 +9,39 @@ let delays = [];
 let words = [];
 let wordDelays = [];
 
-var initialDelay = 0;
-var gotInput = false;
-
-// function prompt() {
-//     const readline = require("readline");
-//     const rl = readline.createInterface({
-//         input: process.stdin,
-//         output: process.stdout
-//     });
-//     rl.question("Song Name: ", function (answer) {
-//         this.songName = answer;
-//         this.gotInput = true;
-
-//         rl.close();
-//     });
-// }
-
-function loadingLine(symbol, length, delay) {
-    let line = '';
-    let i = 0;
-    var intervalID = setInterval(() => {
-        console.clear();
-        line += symbol;
-        console.log(line);
-        i++;
-        if (i > length) clearInterval(intervalID);
-    }, delay);
-    initialDelay += delay;
-}
-
 function distribute() {
-    const temp = str.split('\n');
-    for (let i = 0; i < temp.length - 1; i++) {
+    const rawLyrics = getLyrics("./Songs/" + songName + ".txt").split("\n");
+    for (let i = 0; i < rawLyrics.length - 1; i++) {
         if (i % 2 == 0)
-            timeStamps.push(temp[i]);
+            timeStamps.push(rawLyrics[i]);
         else
-            lyrics.push(temp[i]);
+            lyrics.push(rawLyrics[i]);
     }
 }
 
-// function isLetter(letter) {
-//     return letter.toLowerCase() != letter.toUpperCase();
-// }
+function isValidChar(c) {
+    return c.toLowerCase() != c.toUpperCase() || !isNaN(c) || c == '\'';
+}
 
-// function cleanWord(word) {
-//     let result = 
-//     for (let i = 0; i < word.length; i++) {
-//         if (isLetter(word[i]))
-//             result += word[i];
-//     }
-// }
+function cleanWord(word) {
+    let c = 0;
+    let result = "";
+    for (let i = 0; i < word.length; i++) {
+        if (isValidChar(word[i]))
+            result += word[i];
+        else
+            c++;
+    }
+    for (let i = 0; i < c; i++) result += " ";
+    return result;
+}
 
-function convertToMS() {
+function printLyric(text, clear) {
+    if (clear) console.clear();
+    console.log(text);
+}
+
+function setPhraseDelays() {
     for (let i = 0; i < timeStamps.length; i++) {
         delays.push(
             parseInt(timeStamps[i].substr(0, 2)) * 60000
@@ -72,42 +51,45 @@ function convertToMS() {
     }
 }
 
-function convertToNS(ultraPrecise) {
-    convertToMS();
-    let c = 1;
-    wordDelays.push(delays[0] + initialDelay);
+function setWordDelays(relative) {
+    setPhraseDelays();
+    wordDelays.push(delays[0]);
     for (let i = 0; i < lyrics.length; i++) {
-        let sentence = lyrics[i].split(" ");
-        if (sentence[sentence.length - 1] == "")
-            sentence.pop();
-        for (let j = 0; j < sentence.length; j++) {
-            //cleanWord(sentence[j]);
-            words.push(sentence[j]);
-            let wordSize = words[words.length - 1].length;
-            let sentenceSize = lyrics[i].split(" ").join("").length;
-            let diff = delays[i + 1] - delays[i];
-            let ratio = wordSize / sentenceSize;
-            let delayType = (ultraPrecise) ? (ratio *= diff) : (diff / sentence.length);
-            var preciseDelay = delayType + wordDelays[c - 1];
+        let phrase = lyrics[i].split(" ");
+        if (phrase[phrase.length - 1] == "") phrase.pop();
+        for (let j = 0; j < phrase.length; j++) {
+            words.push(cleanWord(phrase[j]));
+            let currentChars = words[words.length - 1].length
+            let numOfChars = lyrics[i].split(" ").join("").length;
+            let delayType;
+            if (relative) {
+                let ratio = currentChars / numOfChars;
+                delayType = (ratio *= diff);
+            } else {
+                let diff = delays[i + 1] - delays[i];
+                delayType = (diff / phraseType);
+            }
+            var preciseDelay = delayType + wordDelays[wordDelays.length - 1];
             if (!isNaN(preciseDelay))
-                wordDelays.push(preciseDelay + initialDelay);
-            c++;
+                wordDelays.push(preciseDelay);
         }
     }
 }
 
-function printLyric(text, clear) {
-    if (clear) console.clear();
-    console.log(text);
-}
-
-function sync(precise, ultraPrecise) {
-
+/**
+ * call the sync() method to run the program. set the first parameter to true
+ * if you want to sync the lyrics by word, not by sentence. set the second parameter
+ * to true if you want to sync the words relative to the length of the sentence 
+ * (shorter words will be on the screen for a shorter period of time, and vice versa).
+ * @param {*} precise 
+ * @param {*} relative 
+ */
+function sync(precise, relative) {
     distribute();
     if (precise)
-        convertToNS(ultraPrecise);
+        setWordDelays(relative);
     else
-        convertToMS();
+        setPhraseDelays();
     const start_play = new Date();
     let i = 0;
     let length = (precise) ? wordDelays.length : delays.length;
@@ -121,15 +103,3 @@ function sync(precise, ultraPrecise) {
     }
     console.log('starting song...');
 }
-
-
-//loadingLine('█', 50, 10);
-
-// prompt();
-
-sync(true, true);
-
-
-
-
-
